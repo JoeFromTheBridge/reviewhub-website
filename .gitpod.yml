@@ -1,0 +1,37 @@
+# .gitpod.yml
+# This file configures the Gitpod workspace
+
+# Define the Docker image for the workspace
+image:
+  file: reviewhub-backend/Dockerfile
+
+# Define tasks to run when the workspace starts
+tasks:
+  - name: Start Backend
+    init: |
+      # Initialize database (if not already done by Dockerfile or needs re-init)
+      python -c "from app_enhanced import db; db.create_all()"
+    command: |
+      # The CMD in Dockerfile will run the Flask app, but we can add more here if needed
+      echo "Backend is starting..."
+
+  - name: Start Frontend
+    init: |
+      cd reviewhub
+      npm install
+    command: |
+      cd reviewhub
+      npm start
+
+# Define ports to expose
+ports:
+  - port: 5000
+    onOpen: ignore # Backend port
+  - port: 3000
+    onOpen: browser # Frontend port
+
+# Configure VS Code extensions (optional)
+vscode:
+  extensions:
+    - ms-python.python
+    - esbenp.prettier-vscode

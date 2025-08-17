@@ -1,42 +1,20 @@
-# ReviewHub Backend Dockerfile
-FROM python:3.11-slim
+# Use a stable Python base image
+FROM python:3.9-slim-buster
 
-# Set working directory
+# Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements first for better caching
+# Copy only the requirements file first to leverage Docker cache
 COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy the rest of the application code
 COPY . .
 
-# Create database directory
-RUN mkdir -p /app/data
-
-# Set environment variables
-ENV FLASK_APP=app.py
-ENV FLASK_ENV=production
-ENV DATABASE_URL=sqlite:///data/reviewhub.db
-
-# Expose port
+# Expose the port Flask runs on
 EXPOSE 5000
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-USER appuser
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5000/api/health || exit 1
-
-# Run the application
-CMD ["python", "app.py"]
-
+# Command to run the Flask application
+CMD ["flask", "run", "--host=0.0.0.0"]
