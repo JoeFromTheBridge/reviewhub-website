@@ -16,7 +16,7 @@ marshmallow==3.20.2
 marshmallow-sqlalchemy==0.29.0
 
 # Image processing
-Pillow==10.1.0
+Pillow
 Wand==0.6.13
 
 # File upload and storage
@@ -35,7 +35,7 @@ elasticsearch==8.11.0
 elasticsearch-dsl==8.11.0
 
 # Analytics and monitoring
-Flask-APM==1.0.0
+
 
 # Background tasks
 celery==5.3.4
@@ -64,7 +64,7 @@ faker==20.1.0
 
 # PDF generation for data exports
 reportlab==4.0.4
-Pillow==10.0.1
+Pillow
 numpy==1.24.3
 
 # Machine learning for recommendations
