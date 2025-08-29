@@ -16,7 +16,7 @@ marshmallow==3.20.2
 marshmallow-sqlalchemy==0.29.0
 
 # Image processing
-Pillow==10.1.0
+Pillow==10.3.0
 Wand==0.6.13
 
 # File upload and storage
@@ -33,9 +33,6 @@ redis==5.0.1
 # Search functionality
 elasticsearch==8.11.0
 elasticsearch-dsl==8.11.0
-
-# Analytics and monitoring
-Flask-APM==1.0.0
 
 # Background tasks
 celery==5.3.4
@@ -55,20 +52,16 @@ python-slugify==8.0.1
 bleach==6.1.0  # HTML sanitization
 validators==0.22.0
 
-# Development and testing
-pytest==7.4.3
-pytest-flask==1.3.0
-factory-boy==3.3.0
-faker==20.1.0
-
+# Development and testing (these are usually not needed in production requirements.txt)
+# pytest==7.4.3
+# pytest-flask==1.3.0
+# factory-boy==3.3.0
+# faker==20.1.0
 
 # PDF generation for data exports
 reportlab==4.0.4
-Pillow==10.0.1
-numpy==1.24.3
 
 # Machine learning for recommendations
 scikit-learn==1.3.2
 pandas==2.1.4
 numpy==1.25.2
-
