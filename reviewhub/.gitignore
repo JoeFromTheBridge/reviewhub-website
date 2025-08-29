@@ -1,0 +1,69 @@
+node_modules
+.env
+.env.local
+.env.development.local
+.env.production.local
+
+# Recharts
+recharts-events.js
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Directory for executable scripts
+bin/
+
+# dotenv environment variables file
+.env
+
+# local .pnp files
+.pnp/
+.pnp.js
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.bak
+
+# Vite
+/dist
+/dist-ssr
+
+# Cypress
+/cypress/videos
+/cypress/screenshots
+
+# VS Code
+.vscode/
+
+# pnpm
+/pnpm-lock.yaml
+/pnpm-workspace.yaml
+
+# yarn
+/yarn.lock
+
+# npm
+/package-lock.json
+
+
