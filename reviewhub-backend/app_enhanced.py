@@ -74,16 +74,31 @@ jwt = JWTManager(app)
 migrate = Migrate(app, db)
 
 # CORS configuration
-# ---- CORS configuration (robust) ----
-# Set CORS_ORIGINS in Render env to include your Vercel URL, e.g.:
-# CORS_ORIGINS=https://your-app.vercel.app,http://localhost:5173,http://localhost:3000
+# ---- CORS configuration (robust + Vercel previews) ----
+import re
+from flask_cors import CORS
+
 raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
 cors_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
 
+local_origins = {"http://localhost:5173", "http://localhost:3000"}
+vercel_regex = re.compile(r"^https://[a-z0-9-]+\.vercel\.app$")
+
+def _origin_is_allowed(origin: str) -> bool:
+    if not origin:
+        return False
+    if origin in local_origins:
+        return True
+    if origin in cors_origins:
+        return True
+    if vercel_regex.match(origin):
+        return True
+    return False
+
 CORS(
     app,
-    resources={r"/*": {"origins": cors_origins}},
-    supports_credentials=True,  # keep True only if you actually use cookies
+    resources={r"/*": {"origins": "*"}},
+    supports_credentials=False,   # leave False since you use JWT headers
     expose_headers=["Content-Type", "Authorization"],
     allow_headers=["Content-Type", "Authorization"],
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -91,22 +106,16 @@ CORS(
 
 @app.after_request
 def add_cors_headers(resp):
-    """
-    Ensure Access-Control headers are present on *all* responses produced
-    by your app (including errors), so the browser doesn’t block them.
-    Note: This won’t affect upstream 503s from the platform itself.
-    """
-    try:
-        origin = request.headers.get("Origin")
-        if origin and origin in cors_origins:
-            resp.headers["Access-Control-Allow-Origin"] = origin
-            resp.headers["Vary"] = "Origin"
-            resp.headers["Access-Control-Allow-Credentials"] = "true"
-            resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-            resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    except Exception:
-        pass
+    origin = request.headers.get("Origin")
+    if _origin_is_allowed(origin):
+        resp.headers["Access-Control-Allow-Origin"] = origin
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        # If you switch to cookies later, also add:
+        # resp.headers["Access-Control-Allow-Credentials"] = "true"
     return resp
+
 
 
 # -------------------------
