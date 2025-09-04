@@ -1,0 +1,32 @@
+{
+  "products": [
+    {
+      "name": "iPhone 15 Pro",
+      "brand": "Apple",
+      "category": "Electronics",
+      "description": "Latest iPhone with titanium design and A17 Pro chip",
+      "price_range": "$999 - $1,199",
+      "image_url": "https://example.com/iphone15pro.jpg",
+      "specifications": [
+        "6.1-inch Display",
+        "128GB Storage",
+        "48MP Camera",
+        "A17 Pro Chip"
+      ]
+    },
+    {
+      "name": "Model S",
+      "brand": "Tesla",
+      "category": "Automotive",
+      "description": "Electric luxury sedan with autopilot capabilities",
+      "price_range": "$75,000 - $100,000",
+      "image_url": "https://example.com/tesla-model-s.jpg",
+      "specifications": [
+        "Electric Motor",
+        "400+ mile range",
+        "Autopilot",
+        "Premium Interior"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+name,brand,category,description,price_range,image_url,specifications
+iPhone 15 Pro,Apple,Electronics,Latest iPhone with titanium design and A17 Pro chip,"$999 - $1,199",https://example.com/iphone15pro.jpg,"[""6.1-inch Display"", ""128GB Storage"", ""48MP Camera"", ""A17 Pro Chip""]"
+Model S,Tesla,Automotive,Electric luxury sedan with autopilot capabilities,"$75,000 - $100,000",https://example.com/tesla-model-s.jpg,"[""Electric Motor"", ""400+ mile range"", ""Autopilot"", ""Premium Interior""]"
