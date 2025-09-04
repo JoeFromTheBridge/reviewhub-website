@@ -78,10 +78,14 @@ migrate = Migrate(app, db)
 import re
 from flask_cors import CORS
 
+# Parse extra origins from env (optional, comma-separated)
 raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
 cors_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
 
+# Allow localhost dev
 local_origins = {"http://localhost:5173", "http://localhost:3000"}
+
+# Allow any *.vercel.app (covers preview + production on Vercel)
 vercel_regex = re.compile(r"^https://[a-z0-9-]+\.vercel\.app$")
 
 def _origin_is_allowed(origin: str) -> bool:
@@ -89,16 +93,18 @@ def _origin_is_allowed(origin: str) -> bool:
         return False
     if origin in local_origins:
         return True
-    if origin in cors_origins:
+    if origin in cors_origins:           # anything you listed in env
         return True
-    if vercel_regex.match(origin):
+    if vercel_regex.match(origin):       # any preview/prod on vercel.app
         return True
     return False
 
+# You use JWT via Authorization header, so credentials aren't required.
+# Keep supports_credentials=False; we'll mirror the allowed Origin below.
 CORS(
     app,
     resources={r"/*": {"origins": "*"}},
-    supports_credentials=False,   # leave False since you use JWT headers
+    supports_credentials=False,
     expose_headers=["Content-Type", "Authorization"],
     allow_headers=["Content-Type", "Authorization"],
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -107,15 +113,17 @@ CORS(
 @app.after_request
 def add_cors_headers(resp):
     origin = request.headers.get("Origin")
-    if _origin_is_allowed(origin):
-        resp.headers["Access-Control-Allow-Origin"] = origin
-        resp.headers["Vary"] = "Origin"
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-        # If you switch to cookies later, also add:
-        # resp.headers["Access-Control-Allow-Credentials"] = "true"
+    try:
+        if _origin_is_allowed(origin):
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+            resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            # If you ever switch to cookie auth, also add:
+            # resp.headers["Access-Control-Allow-Credentials"] = "true"
+    except Exception:
+        pass
     return resp
-
 
 
 # -------------------------
