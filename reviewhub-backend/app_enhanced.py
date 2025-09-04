@@ -132,6 +132,13 @@ def add_cors_headers(resp):
 @app.get("/healthz")
 def healthz():
     return {"ok": True, "db": app.config["SQLALCHEMY_DATABASE_URI"][:32] + "..."}, 200
+@app.route("/api/_debug/cors", methods=["GET", "OPTIONS"])
+def debug_cors():
+    return jsonify({
+        "ok": True,
+        "origin_seen": request.headers.get("Origin"),
+        "note": "Inspect response header: Access-Control-Allow-Origin"
+    }), 200
 
 # -------------------------
 # Root index (landing page)
