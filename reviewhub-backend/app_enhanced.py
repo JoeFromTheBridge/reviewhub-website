@@ -74,8 +74,40 @@ jwt = JWTManager(app)
 migrate = Migrate(app, db)
 
 # CORS configuration
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
-CORS(app, origins=cors_origins, supports_credentials=True)
+# ---- CORS configuration (robust) ----
+# Set CORS_ORIGINS in Render env to include your Vercel URL, e.g.:
+# CORS_ORIGINS=https://your-app.vercel.app,http://localhost:5173,http://localhost:3000
+raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
+cors_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+
+CORS(
+    app,
+    resources={r"/*": {"origins": cors_origins}},
+    supports_credentials=True,  # keep True only if you actually use cookies
+    expose_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+)
+
+@app.after_request
+def add_cors_headers(resp):
+    """
+    Ensure Access-Control headers are present on *all* responses produced
+    by your app (including errors), so the browser doesn’t block them.
+    Note: This won’t affect upstream 503s from the platform itself.
+    """
+    try:
+        origin = request.headers.get("Origin")
+        if origin and origin in cors_origins:
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Vary"] = "Origin"
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+            resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    except Exception:
+        pass
+    return resp
+
 
 # -------------------------
 # Health check
