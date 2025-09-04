@@ -6,7 +6,7 @@
 // Use Vite env; fallback to same-origin /api (good for proxies) or localhost in dev
 const API_BASE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) ||
-  (typeof window !== 'undefined' ? `${window.location.origin}/api` : 'http://localhost:5000/api');
+  (typeof window !== 'undefined' ? `${window.location.origin}/api` : 'https://reviewhub-website.onrender.com');
 
 class ApiService {
   constructor() {
