@@ -11,11 +11,12 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy app code
 COPY . .
 
-# Make sure FLASK_APP resolves
-ENV FLASK_APP=app_enhanced.py
+# Ensure unbuffered logs (so Render shows them live)
+ENV PYTHONUNBUFFERED=1
 
-# Expose (Render will pass $PORT at runtime)
+# Expose (Render sets $PORT at runtime)
 EXPOSE 5000
 
-# Start the server on $PORT when provided, otherwise 5000 for local runs
-CMD ["sh", "-c", "flask run --host=0.0.0.0 --port=${PORT:-5000}"]
+# Start via gunicorn, bind to Render's $PORT (falls back to 5000 locally)
+# Replace app_enhanced:app if your module/variable differ
+CMD ["sh", "-c", "gunicorn -w 2 -k gthread -b 0.0.0.0:${PORT:-5000} app_enhanced:app --timeout 120 --graceful-timeout 30 --log-level info"]
