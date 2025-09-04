@@ -1,6 +1,3 @@
-Absolutely—here’s your `app_enhanced.py` with the new `/` index route added (right after the existing `/healthz` route). You can copy–paste this whole file in:
-
-```python
 import os
 import logging
 from datetime import datetime, timedelta
@@ -2300,4 +2297,3 @@ if __name__ == "__main__":
         visual_search_service.init_app(app)
 
     app.run(host="0.0.0.0", port=5000, debug=True)
-```
