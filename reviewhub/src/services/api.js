@@ -1,12 +1,23 @@
 /**
  * API service for ReviewHub frontend
  * Handles all HTTP requests to the backend
+ *
+ * Notes:
+ * - Default backend API is the Render service (change via VITE_API_URL if needed).
+ * - Health check calls backend /healthz at the service root (not under /api).
  */
 
-// Use Vite env; fallback to same-origin /api (good for proxies) or localhost in dev
-const API_BASE_URL =
-  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) ||
-  (typeof window !== 'undefined' ? `${window.location.origin}/api` : 'https://reviewhub-website.onrender.com');
+// ---- Base URL config ----
+const DEFAULT_BACKEND_API = 'https://reviewhub-backend-31dw.onrender.com/api';
+
+const RAW_ENV_API =
+  (typeof import.meta !== 'undefined' &&
+    import.meta.env &&
+    import.meta.env.VITE_API_URL) ||
+  DEFAULT_BACKEND_API;
+
+// Normalize: ensure no trailing slash
+const API_BASE_URL = RAW_ENV_API.replace(/\/+$/, '');
 
 class ApiService {
   constructor() {
@@ -553,7 +564,15 @@ class ApiService {
 
   // ---- Health ----
   async healthCheck() {
-    return this.request('/health');
+    // Call backend service root /healthz (not under /api)
+    const serviceOrigin = new URL(this.baseURL).origin;
+    const url = `${serviceOrigin}/healthz`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Health check failed: ${res.status}`);
+    }
+    return res.json();
   }
 }
 
