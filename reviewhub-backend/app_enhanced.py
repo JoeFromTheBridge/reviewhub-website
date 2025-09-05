@@ -74,13 +74,14 @@ jwt = JWTManager(app)
 migrate = Migrate(app, db)
 
 # CORS configuration
-# ===== CORS (open, no cookies) — START =====
+# ===== CORS (open; no cookies) — START =====
 from flask_cors import CORS
 
+# We use JWT in Authorization header, not cookies → no credentials needed.
 CORS(
     app,
     resources={r"/*": {"origins": "*"}},
-    supports_credentials=False,  # important: we're not using cookies
+    supports_credentials=False,  # important: credentials OFF means '*' is allowed
     expose_headers=["Content-Type", "Authorization"],
     allow_headers=["Content-Type", "Authorization"],
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -89,13 +90,15 @@ CORS(
 @app.after_request
 def add_cors_headers(resp):
     origin = request.headers.get("Origin")
-    # Mirror the origin if present; otherwise use '*'
+    # Mirror the Origin if present; otherwise use '*'
     resp.headers["Access-Control-Allow-Origin"] = origin or "*"
     resp.headers["Vary"] = "Origin"
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    # Do NOT set Access-Control-Allow-Credentials when supports_credentials=False
     return resp
-# ===== CORS (open, no cookies) — END =====
+# ===== CORS (open; no cookies) — END =====
+
 
 
 # -------------------------
