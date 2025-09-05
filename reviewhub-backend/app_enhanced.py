@@ -2487,65 +2487,142 @@ def seed_command(demo):
 
 
 # --- Seed runner (no-shell) ---
-SEED_TOKEN = os.getenv("SEED_TOKEN", "").strip()
+import secrets
+import traceback
+from sqlalchemy import inspect
+
+SEED_TOKEN = os.getenv("SEED_TOKEN", "")
+
+def _tables_exist():
+    try:
+        insp = inspect(db.engine)
+        # check a couple of core tables
+        return all(insp.has_table(t) for t in ["user", "category", "product", "review"])
+    except Exception:
+        return False
 
 @app.get("/api/_debug/seed-status")
 def seed_status():
+    # minimal status for debugging from the browser
     return jsonify({
         "ok": True,
-        "has_seed_token": bool(SEED_TOKEN),
-        "token_length": len(SEED_TOKEN),
         "service": "reviewhub-website",
+        "has_seed_token": bool(SEED_TOKEN),
+        "token_length": len(SEED_TOKEN or ""),
+        "tables_present": _tables_exist(),
+        "db_uri_prefix": (app.config["SQLALCHEMY_DATABASE_URI"] or "")[:24] + "...",
     }), 200
 
 @app.post("/api/admin/seed")
 def seed_data():
-    # 1) Try Authorization: Bearer <token>
-    header = (request.headers.get("Authorization") or "").strip()
-    token_from_header = ""
-    if header.lower().startswith("bearer "):
-        token_from_header = header[7:].strip()
+    # --- auth (Bearer <token> or ?token=...) ---
+    header = request.headers.get("Authorization", "")
+    qs_token = request.args.get("token") or (request.json or {}).get("token") if request.is_json else None
+    supplied = None
+    parts = header.split()
+    if len(parts) == 2 and parts[0] == "Bearer":
+        supplied = parts[1]
+    elif qs_token:
+        supplied = qs_token
 
-    # 2) Fallbacks: ?token=... or JSON body {"token": "..."}
-    token = token_from_header or request.args.get("token", "").strip()
-    if not token and request.is_json:
-        token = (request.get_json(silent=True) or {}).get("token", "").strip()
-
-    if not SEED_TOKEN:
-        return jsonify({"error": "Server missing SEED_TOKEN env var"}), 500
-
-    if token != SEED_TOKEN:
+    if not SEED_TOKEN or supplied != SEED_TOKEN:
         return jsonify({
             "error": "Unauthorized",
             "hint": "Token mismatch",
-            "received_len": len(token),
-            "expected_len": len(SEED_TOKEN),
+            "expected_len": len(SEED_TOKEN or ""),
+            "received_len": len(supplied or "")
         }), 401
 
-    # --- idempotent seed (safe to run many times) ---
-    def get_or_create(model, defaults=None, **kwargs):
-        inst = model.query.filter_by(**kwargs).first()
-        if inst:
-            return inst, False
-        params = {**(defaults or {}), **kwargs}
-        inst = model(**params)
-        db.session.add(inst)
-        return inst, True
+    try:
+        # Ensure tables exist in production (gunicorn won't run __main__)
+        db.create_all()
 
-    # categories
-    laptops, _ = get_or_create(Category, name="Laptops", slug="laptops")
-    phones, _  = get_or_create(Category, name="Phones",  slug="phones")
+        def get_or_create(model, defaults=None, **kwargs):
+            inst = model.query.filter_by(**kwargs).first()
+            if inst:
+                return inst, False
+            params = {**(defaults or {}), **kwargs}
+            inst = model(**params)
+            db.session.add(inst)
+            return inst, True
 
-    # products
-    p1, _ = get_or_create(Product, name="ZenBook 14", brand="ASUS", model="UX3402",
-                          category_id=laptops.id, defaults={"is_active": True})
-    p2, _ = get_or_create(Product, name="MacBook Air 13", brand="Apple", model="M2",
-                          category_id=laptops.id, defaults={"is_active": True})
-    p3, _ = get_or_create(Product, name="Pixel 8", brand="Google", model="GA04831-US",
-                          category_id=phones.id, defaults={"is_active": True})
+        # categories
+        laptops, n_c1 = get_or_create(
+            Category,
+            name="Laptops",
+            slug="laptops",
+            defaults={"description": "Portable computers"}
+        )
+        phones, n_c2 = get_or_create(
+            Category,
+            name="Phones",
+            slug="phones",
+            defaults={"description": "Smartphones & accessories"}
+        )
 
-    db.session.commit()
-    return jsonify({"ok": True, "seeded_products": [p.name for p in (p1, p2, p3)]}), 200
+        # products (idempotent)
+        p1, n1 = get_or_create(
+            Product,
+            name="ZenBook 14",
+            brand="ASUS",
+            model="UX3402",
+            category_id=laptops.id,
+            defaults={
+                "description": "14” ultrabook with OLED",
+                "price_min": 999.0, "price_max": 1299.0,
+                "specifications": {"cpu": "Intel i7", "ram": "16GB", "storage": "512GB SSD"},
+                "is_active": True
+            }
+        )
+        p2, n2 = get_or_create(
+            Product,
+            name="MacBook Air 13",
+            brand="Apple",
+            model="M2",
+            category_id=laptops.id,
+            defaults={
+                "description": "Thin & light with Apple Silicon",
+                "price_min": 999.0, "price_max": 1499.0,
+                "specifications": {"cpu": "M2", "ram": "8GB", "storage": "256GB SSD"},
+                "is_active": True
+            }
+        )
+        p3, n3 = get_or_create(
+            Product,
+            name="Pixel 8",
+            brand="Google",
+            model="GA04831-US",
+            category_id=phones.id,
+            defaults={
+                "description": "Flagship Android with great camera",
+                "price_min": 699.0, "price_max": 899.0,
+                "specifications": {"display": '6.2"', "storage": "128GB"},
+                "is_active": True
+            }
+        )
+
+        db.session.commit()
+        return jsonify({
+            "ok": True,
+            "created_counts": {
+                "categories": int(n_c1) + int(n_c2),
+                "products": int(n1) + int(n2) + int(n3)
+            },
+            "seeded_products": [p1.name, p2.name, p3.name]
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Seed failed")
+        # return JSON, not HTML
+        return jsonify({
+            "ok": False,
+            "error": "Seed failed",
+            "detail": str(e),
+            # comment the next line out if you don't want to expose tracebacks
+            "traceback": traceback.format_exc().splitlines()[-6:],
+        }), 500
+
 
 
 
