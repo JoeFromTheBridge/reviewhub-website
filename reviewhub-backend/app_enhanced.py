@@ -858,6 +858,7 @@ def get_products():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/api/products/<int:product_id>", methods=["GET"])
 def get_product(product_id):
     try:
@@ -867,6 +868,7 @@ def get_product(product_id):
         return jsonify({"product": product.to_dict()})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/products", methods=["POST"])
 @jwt_required()
@@ -900,6 +902,7 @@ def create_product():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/api/products/<int:product_id>/reviews", methods=["GET"])
 def get_product_reviews(product_id):
     try:
@@ -932,6 +935,42 @@ def get_product_reviews(product_id):
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# NEW: Public list of reviews (for homepage/widgets)
+@app.route("/api/reviews", methods=["GET"])
+def list_reviews():
+    try:
+        limit = min(int(request.args.get("limit", 20)), 50)
+        page = max(int(request.args.get("page", 1)), 1)
+
+        sort = (request.args.get("sort") or "created_at").lower()
+        order = (request.args.get("order") or "desc").lower()
+
+        q = Review.query.filter_by(is_active=True)
+
+        product_id = request.args.get("product_id", type=int)
+        if product_id:
+            q = q.filter_by(product_id=product_id)
+        user_id = request.args.get("user_id", type=int)
+        if user_id:
+            q = q.filter_by(user_id=user_id)
+
+        sort_col = Review.rating if sort == "rating" else Review.created_at
+        q = q.order_by(sort_col.asc() if order == "asc" else sort_col.desc())
+
+        items = q.paginate(page=page, per_page=limit, error_out=False)
+
+        return jsonify({
+            "reviews": [r.to_dict() for r in items.items],
+            "total": items.total,
+            "pages": items.pages,
+            "current_page": page,
+            "per_page": limit,
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/reviews", methods=["POST"])
 @jwt_required()
@@ -987,6 +1026,7 @@ def create_review():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/api/reviews/<int:review_id>/vote", methods=["POST"])
 @jwt_required()
 def vote_review(review_id):
@@ -1010,6 +1050,7 @@ def vote_review(review_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
 
 # -------------------------
 # Categories
