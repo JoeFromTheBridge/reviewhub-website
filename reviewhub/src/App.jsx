@@ -12,7 +12,11 @@ import AdminUsers from './components/admin/AdminUsers'
 import AdminPerformance from './components/admin/AdminPerformance'
 import AdminVoiceSearch from './components/admin/AdminVoiceSearch'
 import { useAuth } from './contexts/AuthContext'
-// ❌ removed: import './App.css'
+
+// NEW: pages to create
+import CategoriesPage from './components/categories/CategoriesPage'
+import CategoryPage from './components/categories/CategoryPage'
+import ReviewsPage from './components/reviews/ReviewsPage'
 
 // Admin route wrapper to check admin permissions
 const AdminRoute = ({ children }) => {
@@ -69,7 +73,27 @@ function App() {
                 <PrivacyPage />
               </>
             } />
-            
+
+            {/* NEW: Categories & Reviews */}
+            <Route path="/categories" element={
+              <>
+                <Header />
+                <CategoriesPage />
+              </>
+            } />
+            <Route path="/category/:slug" element={
+              <>
+                <Header />
+                <CategoryPage />
+              </>
+            } />
+            <Route path="/reviews" element={
+              <>
+                <Header />
+                <ReviewsPage />
+              </>
+            } />
+
             {/* Admin routes */}
             <Route path="/admin" element={
               <AdminRoute>
