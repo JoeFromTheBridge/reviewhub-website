@@ -2485,17 +2485,42 @@ def seed_command(demo):
         db.session.commit()
         click.echo(f"Seed complete. New objects created: {created}")
 
-# --- Seed runner (no-shell) ---
-import secrets
 
-SEED_TOKEN = os.getenv("SEED_TOKEN", "")
+# --- Seed runner (no-shell) ---
+SEED_TOKEN = os.getenv("SEED_TOKEN", "").strip()
+
+@app.get("/api/_debug/seed-status")
+def seed_status():
+    return jsonify({
+        "ok": True,
+        "has_seed_token": bool(SEED_TOKEN),
+        "token_length": len(SEED_TOKEN),
+        "service": "reviewhub-website",
+    }), 200
 
 @app.post("/api/admin/seed")
 def seed_data():
-    header = request.headers.get("Authorization", "")
-    parts = header.split()
-    if len(parts) != 2 or parts[0] != "Bearer" or parts[1] != SEED_TOKEN:
-        return jsonify({"error": "Unauthorized"}), 401
+    # 1) Try Authorization: Bearer <token>
+    header = (request.headers.get("Authorization") or "").strip()
+    token_from_header = ""
+    if header.lower().startswith("bearer "):
+        token_from_header = header[7:].strip()
+
+    # 2) Fallbacks: ?token=... or JSON body {"token": "..."}
+    token = token_from_header or request.args.get("token", "").strip()
+    if not token and request.is_json:
+        token = (request.get_json(silent=True) or {}).get("token", "").strip()
+
+    if not SEED_TOKEN:
+        return jsonify({"error": "Server missing SEED_TOKEN env var"}), 500
+
+    if token != SEED_TOKEN:
+        return jsonify({
+            "error": "Unauthorized",
+            "hint": "Token mismatch",
+            "received_len": len(token),
+            "expected_len": len(SEED_TOKEN),
+        }), 401
 
     # --- idempotent seed (safe to run many times) ---
     def get_or_create(model, defaults=None, **kwargs):
@@ -2513,14 +2538,15 @@ def seed_data():
 
     # products
     p1, _ = get_or_create(Product, name="ZenBook 14", brand="ASUS", model="UX3402",
-                          category_id=laptops.id)
+                          category_id=laptops.id, defaults={"is_active": True})
     p2, _ = get_or_create(Product, name="MacBook Air 13", brand="Apple", model="M2",
-                          category_id=laptops.id)
+                          category_id=laptops.id, defaults={"is_active": True})
     p3, _ = get_or_create(Product, name="Pixel 8", brand="Google", model="GA04831-US",
-                          category_id=phones.id)
+                          category_id=phones.id, defaults={"is_active": True})
 
     db.session.commit()
-    return jsonify({"ok": True, "seeded_products": [p.name for p in (p1, p2, p3)]})
+    return jsonify({"ok": True, "seeded_products": [p.name for p in (p1, p2, p3)]}), 200
+
 
 
 
