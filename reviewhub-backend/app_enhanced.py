@@ -74,30 +74,40 @@ jwt = JWTManager(app)
 migrate = Migrate(app, db)
 
 # CORS configuration
-# ===== CORS (open; no cookies) — START =====
-from flask_cors import CORS
+# ===== Minimal, framework-free CORS (no cookies) =====
+from flask import make_response
 
-# We use JWT in Authorization header, not cookies → no credentials needed.
-CORS(
-    app,
-    resources={r"/*": {"origins": "*"}},
-    supports_credentials=False,  # important: credentials OFF means '*' is allowed
-    expose_headers=["Content-Type", "Authorization"],
-    allow_headers=["Content-Type", "Authorization"],
-    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-)
+# If you are NOT using cookies (JWT via Authorization header), this is safe & simplest.
+# It covers both normal responses and preflight OPTIONS.
+ALLOWED_HEADERS = "Content-Type, Authorization"
+ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
 
 @app.after_request
-def add_cors_headers(resp):
+def force_cors_headers(resp):
     origin = request.headers.get("Origin")
-    # Mirror the Origin if present; otherwise use '*'
+    # Mirror the Origin if provided, else use '*'
     resp.headers["Access-Control-Allow-Origin"] = origin or "*"
     resp.headers["Vary"] = "Origin"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    # Do NOT set Access-Control-Allow-Credentials when supports_credentials=False
+    resp.headers["Access-Control-Allow-Headers"] = ALLOWED_HEADERS
+    resp.headers["Access-Control-Allow-Methods"] = ALLOWED_METHODS
+    # Do NOT set Allow-Credentials when using '*' (we're not using cookies)
     return resp
-# ===== CORS (open; no cookies) — END =====
+
+@app.before_request
+def handle_preflight():
+    # Short-circuit CORS preflight so proxies don’t swallow headers
+    if request.method == "OPTIONS":
+        origin = request.headers.get("Origin")
+        resp = make_response("", 204)
+        resp.headers["Access-Control-Allow-Origin"] = origin or "*"
+        resp.headers["Vary"] = "Origin"
+        resp.headers["Access-Control-Allow-Headers"] = request.headers.get(
+            "Access-Control-Request-Headers", ALLOWED_HEADERS
+        )
+        resp.headers["Access-Control-Allow-Methods"] = ALLOWED_METHODS
+        return resp
+# ===== End minimal CORS =====
+
 
 
 
