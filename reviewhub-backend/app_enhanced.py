@@ -2443,16 +2443,16 @@ def seed_command(demo):
         created = 0
 
         def get_or_create(model_cls, defaults=None, **kwargs):
-    inst = model_cls.query.filter_by(**kwargs).first()
-    if inst:
-        return inst, False
-    params = dict(kwargs)
-    if defaults:
-        params.update(defaults)
-    inst = model_cls(**params)
-    db.session.add(inst)
-    return inst, True
-
+            inst = model_cls.query.filter_by(**kwargs).first()
+            if inst:
+                return inst, False
+            params = dict(kwargs)
+            if defaults:
+                params.update(defaults)
+            inst = model_cls(**params)
+            db.session.add(inst)
+            return inst, True
+        
 
         # Categories
         laptops, c1 = get_or_create(Category, name="Laptops", slug="laptops",
@@ -2539,12 +2539,12 @@ def seed_data():
         db.create_all()
 
         def get_or_create(model_cls, defaults=None, **kwargs):
-    inst = model_cls.query.filter_by(**kwargs).first()
-    if inst:
-        return inst, False
-    inst = model_cls(**{**(defaults or {}), **kwargs})
-    db.session.add(inst)
-    return inst, True
+            inst = model_cls.query.filter_by(**kwargs).first()
+            if inst:
+                return inst, False
+            inst = model_cls(**{**(defaults or {}), **kwargs})
+            db.session.add(inst)
+            return inst, True
 
 
         # categories
