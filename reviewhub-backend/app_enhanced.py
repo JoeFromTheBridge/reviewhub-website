@@ -67,6 +67,9 @@ app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "jwt-secret-key")
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
+# Allow unverified logins temporarily (for demos/dev)
+app.config["ALLOW_UNVERIFIED_LOGIN"] = os.getenv("ALLOW_UNVERIFIED_LOGIN", "false").lower() == "true"
+
 
 # Initialize extensions
 db = SQLAlchemy(app)
