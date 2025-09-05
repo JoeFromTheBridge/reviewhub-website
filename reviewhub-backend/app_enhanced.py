@@ -2321,6 +2321,60 @@ def invalidate_cache_on_mutations(response):
             logger.warning(f"Cache invalidation error: {e}")
     return response
 
+# --- Flask CLI seeds (idempotent) ---
+import click
+from sqlalchemy import select
+
+@app.cli.command("seed")
+@click.option("--demo", is_flag=True, help="Load demo products/categories")
+def seed_command(demo):
+    """Seed baseline data safely (idempotent)."""
+    with app.app_context():
+        created = 0
+
+        def get_or_create(model, defaults=None, **kwargs):
+            inst = model.query.filter_by(**kwargs).first()
+            if inst:
+                return inst, False
+            params = dict(kwargs)
+            if defaults:
+                params.update(defaults)
+            inst = model(**params)
+            db.session.add(inst)
+            return inst, True
+
+        # Categories
+        laptops, c1 = get_or_create(Category, name="Laptops", slug="laptops",
+                                    defaults={"description": "Portable computers"})
+        phones, c2  = get_or_create(Category, name="Phones", slug="phones",
+                                    defaults={"description": "Smartphones & accessories"})
+        created += int(c1) + int(c2)
+
+        if demo:
+            # Products (only add if not present)
+            p1, n1 = get_or_create(Product, name="ZenBook 14", model="UX3402",
+                                   defaults={
+                                       "brand": "ASUS",
+                                       "description": "14” ultrabook with OLED",
+                                       "category_id": laptops.id,
+                                       "price_min": 999.0, "price_max": 1299.0,
+                                       "specifications": {"cpu": "Intel i7", "ram": "16GB", "storage": "512GB SSD"},
+                                       "is_active": True
+                                   })
+            p2, n2 = get_or_create(Product, name="Pixel 8", model="G9BQD",
+                                   defaults={
+                                       "brand": "Google",
+                                       "description": "Flagship Android with great camera",
+                                       "category_id": phones.id,
+                                       "price_min": 699.0, "price_max": 899.0,
+                                       "specifications": {"display": '6.2"', "storage": "128GB"},
+                                       "is_active": True
+                                   })
+            created += int(n1) + int(n2)
+
+        db.session.commit()
+        click.echo(f"Seed complete. New objects created: {created}")
+
 # -------------------------
 # Local dev entrypoint
 # -------------------------
