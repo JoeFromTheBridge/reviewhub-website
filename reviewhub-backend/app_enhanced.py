@@ -183,7 +183,9 @@ class User(db.Model):
     review_votes = db.relationship("ReviewVote", backref="user", lazy=True, cascade="all, delete-orphan")
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(
+            password, method="pbkdf2:sha256", salt_length=16
+        )
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
