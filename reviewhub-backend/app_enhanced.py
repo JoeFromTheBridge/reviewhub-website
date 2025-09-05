@@ -422,6 +422,116 @@ class PrivacySettings(db.Model):
     user = db.relationship("User", backref="privacy_settings", uselist=False)
 
 # -------------------------
+# Seeder CLI (add AFTER models, BEFORE routes)
+# -------------------------
+import click
+from sqlalchemy.exc import IntegrityError
+
+def _get_or_create(model, defaults=None, **kwargs):
+    """Idempotent insert helper."""
+    instance = model.query.filter_by(**kwargs).first()
+    if instance:
+        return instance, False
+    params = dict(kwargs)
+    if defaults:
+        params.update(defaults)
+    instance = model(**params)
+    db.session.add(instance)
+    try:
+        db.session.commit()
+        return instance, True
+    except IntegrityError:
+        db.session.rollback()
+        # Race/duplicate safety
+        return model.query.filter_by(**kwargs).first(), False
+
+@app.cli.command("seed")
+@click.option("--demo", is_flag=True, help="Seed demo categories/products.")
+def seed_command(demo):
+    """
+    Seed baseline data safely (idempotent). Run:
+      FLASK_APP=app_enhanced.py flask seed --demo
+    """
+    click.echo("Seeding…")
+
+    # --- Users (optional baseline admin) ---
+    admin, _ = _get_or_create(
+        User,
+        username="admin",
+        defaults=dict(
+            email="admin@example.com",
+            is_admin=True,
+            email_verified=True,
+            first_name="Site",
+            last_name="Admin",
+            created_at=datetime.utcnow(),
+        ),
+    )
+    if not admin.password_hash:
+        admin.set_password("changeme123")
+        db.session.commit()
+
+    if demo:
+        # --- Categories ---
+        cats = [
+            ("Laptops", "laptops", "Portable computers"),
+            ("Headphones", "headphones", "Audio gear"),
+            ("Smartphones", "smartphones", "Mobile phones"),
+        ]
+        category_map = {}
+        for name, slug, desc in cats:
+            cat, _ = _get_or_create(
+                Category,
+                name=name,
+                defaults=dict(slug=slug, description=desc, created_at=datetime.utcnow()),
+            )
+            category_map[name] = cat
+
+        # --- Products (minimal examples) ---
+        demo_products = [
+            dict(name="ZenBook 14", brand="ASUS", model="UX3402", category="Laptops",
+                 price_min=999, price_max=1299,
+                 description="14-inch ultrabook", image_url=None, specifications={"cpu":"Intel i7","ram":"16GB"}),
+            dict(name="ThinkPad X1 Carbon", brand="Lenovo", model="Gen 11", category="Laptops",
+                 price_min=1399, price_max=1999,
+                 description="Business ultralight", image_url=None, specifications={"cpu":"Intel i7","ram":"16GB"}),
+            dict(name="WH-1000XM5", brand="Sony", model="XM5", category="Headphones",
+                 price_min=349, price_max=399,
+                 description="ANC over-ear headphones", image_url=None, specifications={"anc":True}),
+            dict(name="AirPods Pro 2", brand="Apple", model="2nd Gen", category="Headphones",
+                 price_min=249, price_max=279,
+                 description="ANC earbuds", image_url=None, specifications={"anc":True}),
+            dict(name="Galaxy S24", brand="Samsung", model="S24", category="Smartphones",
+                 price_min=799, price_max=999,
+                 description="Flagship phone", image_url=None, specifications={"display":"6.2in"}),
+        ]
+
+        created = 0
+        for p in demo_products:
+            cat = category_map[p["category"]]
+            prod, was_new = _get_or_create(
+                Product,
+                name=p["name"],
+                defaults=dict(
+                    brand=p["brand"],
+                    model=p["model"],
+                    description=p["description"],
+                    category_id=cat.id,
+                    image_url=p["image_url"],
+                    price_min=p["price_min"],
+                    price_max=p["price_max"],
+                    specifications=p["specifications"],
+                    created_at=datetime.utcnow(),
+                    is_active=True,
+                ),
+            )
+            created += 1 if was_new else 0
+
+        click.echo(f"Demo products seeded (created {created}, updated {len(demo_products)-created}).")
+
+    click.echo("Seed complete.")
+
+# -------------------------
 # Auth Routes
 # -------------------------
 @app.route("/api/auth/register", methods=["POST"])
