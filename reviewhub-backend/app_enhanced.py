@@ -2442,16 +2442,17 @@ def seed_command(demo):
     with app.app_context():
         created = 0
 
-        def get_or_create(model, defaults=None, **kwargs):
-            inst = model.query.filter_by(**kwargs).first()
-            if inst:
-                return inst, False
-            params = dict(kwargs)
-            if defaults:
-                params.update(defaults)
-            inst = model(**params)
-            db.session.add(inst)
-            return inst, True
+        def get_or_create(model_cls, defaults=None, **kwargs):
+    inst = model_cls.query.filter_by(**kwargs).first()
+    if inst:
+        return inst, False
+    params = dict(kwargs)
+    if defaults:
+        params.update(defaults)
+    inst = model_cls(**params)
+    db.session.add(inst)
+    return inst, True
+
 
         # Categories
         laptops, c1 = get_or_create(Category, name="Laptops", slug="laptops",
@@ -2537,14 +2538,14 @@ def seed_data():
         # Ensure tables exist in production (gunicorn won't run __main__)
         db.create_all()
 
-        def get_or_create(model, defaults=None, **kwargs):
-            inst = model.query.filter_by(**kwargs).first()
-            if inst:
-                return inst, False
-            params = {**(defaults or {}), **kwargs}
-            inst = model(**params)
-            db.session.add(inst)
-            return inst, True
+        def get_or_create(model_cls, defaults=None, **kwargs):
+    inst = model_cls.query.filter_by(**kwargs).first()
+    if inst:
+        return inst, False
+    inst = model_cls(**{**(defaults or {}), **kwargs})
+    db.session.add(inst)
+    return inst, True
+
 
         # categories
         laptops, n_c1 = get_or_create(
