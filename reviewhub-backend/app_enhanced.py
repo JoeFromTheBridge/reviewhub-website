@@ -641,6 +641,7 @@ def resend_verification():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/auth/login", methods=["POST"])
+@app.route("/api/auth/login", methods=["POST"])
 def login():
     try:
         data = request.get_json()
@@ -658,10 +659,13 @@ def login():
             return jsonify({"error": "Invalid credentials"}), 401
         if not user.is_active:
             return jsonify({"error": "Account is deactivated"}), 401
-        if not user.email_verified:
-            return jsonify(
-                {"error": "Email not verified. Please check your email and verify your account.", "email_verified": False}
-            ), 401
+
+        # Allow unverified login only if the flag is ON
+        if not user.email_verified and not app.config["ALLOW_UNVERIFIED_LOGIN"]:
+            return jsonify({
+                "error": "Email not verified. Please check your email and verify your account.",
+                "email_verified": False
+            }), 401
 
         user.last_login = datetime.utcnow()
         user.login_count += 1
@@ -672,6 +676,7 @@ def login():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/api/auth/forgot-password", methods=["POST"])
 def forgot_password():
