@@ -2485,6 +2485,64 @@ def seed_command(demo):
         db.session.commit()
         click.echo(f"Seed complete. New objects created: {created}")
 
+# --- Seed runner (no-shell) ---
+SEED_TOKEN = os.getenv("SEED_TOKEN")  # set this in Render env
+
+def _seed_demo_data():
+    from sqlalchemy import exists
+    # idempotent sample data (adjust as you like)
+    # ensure categories
+    electronics = Category.query.filter_by(slug="electronics").first()
+    if not electronics:
+        electronics = Category(name="Electronics", slug="electronics", description="Gadgets & devices")
+        db.session.add(electronics)
+    home = Category.query.filter_by(slug="home").first()
+    if not home:
+        home = Category(name="Home", slug="home", description="Home & kitchen")
+        db.session.add(home)
+
+    db.session.commit()
+
+    # ensure a few products
+    def ensure_product(name, category, brand=None, price_min=None, price_max=None, description=None):
+        p = Product.query.filter_by(name=name).first()
+        if not p:
+            p = Product(
+                name=name, category_id=category.id, brand=brand,
+                price_min=price_min, price_max=price_max, description=description
+            )
+            db.session.add(p)
+            db.session.commit()
+
+    ensure_product("Echo Dot (5th Gen)", electronics, brand="Amazon", price_min=49.99, price_max=59.99,
+                   description="Smart speaker with Alexa")
+    ensure_product("Instant Pot Duo 7-in-1", home, brand="Instant Brands", price_min=79.99, price_max=99.99,
+                   description="Multi-use pressure cooker")
+    ensure_product("Sony WH-1000XM5", electronics, brand="Sony", price_min=349.99, price_max=399.99,
+                   description="Noise cancelling headphones")
+
+    return {
+        "categories": Category.query.count(),
+        "products": Product.query.count(),
+    }
+
+@app.route("/api/admin/seed", methods=["POST"])
+def http_seed():
+    # Simple bearer-token guard
+    auth = request.headers.get("Authorization", "")
+    token = auth.replace("Bearer ", "").strip() if auth.startswith("Bearer ") else None
+    if not SEED_TOKEN or not token or token != SEED_TOKEN:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    try:
+        with app.app_context():
+            stats = _seed_demo_data()
+        return jsonify({"ok": True, "seeded": stats}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 # -------------------------
 # Local dev entrypoint
 # -------------------------
