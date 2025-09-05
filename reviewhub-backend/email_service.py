@@ -14,23 +14,44 @@ class EmailService:
         # Choose backend: "smtp" or "console"
         self.backend = os.getenv("EMAIL_BACKEND", "smtp").lower()
 
-        # SMTP settings
-        # NOTE: you currently use SMTP_SERVER; keep that for backward compat.
-        self.smtp_host = os.getenv("SMTP_HOST", os.getenv("SMTP_SERVER", ""))
-        self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        self.smtp_username = os.getenv("SMTP_USERNAME", "")
-        self.smtp_password = os.getenv("SMTP_PASSWORD", "")
-        self.smtp_use_tls = os.getenv("SMTP_USE_TLS", "true").lower() == "true"   # STARTTLS on 587
-        self.smtp_use_ssl = os.getenv("SMTP_USE_SSL", "false").lower() == "true"  # SMTPS on 465
+# SMTP settings — supports both SMTP_* and MAIL_* env var names
+self.smtp_host = (
+    os.getenv("SMTP_HOST")
+    or os.getenv("SMTP_SERVER")
+    or os.getenv("MAIL_SERVER")
+    or ""
+)
+self.smtp_port = int(
+    os.getenv("SMTP_PORT")
+    or os.getenv("MAIL_PORT")
+    or "587"
+)
+self.smtp_username = (
+    os.getenv("SMTP_USERNAME")
+    or os.getenv("MAIL_USERNAME")
+    or ""
+)
+self.smtp_password = (
+    os.getenv("SMTP_PASSWORD")
+    or os.getenv("MAIL_PASSWORD")
+    or ""
+)
+# TLS/SSL flags (STARTTLS vs SSL) — use either naming scheme
+self.smtp_use_tls = (os.getenv("SMTP_USE_TLS") or os.getenv("MAIL_USE_TLS") or "true").lower() == "true"
+self.smtp_use_ssl = (os.getenv("SMTP_USE_SSL") or os.getenv("MAIL_USE_SSL") or "false").lower() == "true"
 
-        # From identity
-        self.from_email = os.getenv("FROM_EMAIL", "noreply@reviewhub.com")
-        self.from_name  = os.getenv("FROM_NAME", "ReviewHub")
+# From identity (support a typical Flask-Mail var too)
+self.from_email = os.getenv("FROM_EMAIL") or os.getenv("MAIL_DEFAULT_SENDER") or "noreply@reviewhub.com"
+self.from_name  = os.getenv("FROM_NAME", "ReviewHub")
 
-        # Frontend URLs for links in emails
-        self.frontend_url          = os.getenv("FRONTEND_URL", "http://localhost:3000")
-        self.frontend_verify_url   = os.getenv("FRONTEND_VERIFY_URL", f"{self.frontend_url}/verify-email")
-        self.frontend_reset_url    = os.getenv("FRONTEND_RESET_URL",  f"{self.frontend_url}/reset-password")
+# Frontend URLs for links
+self.frontend_url        = os.getenv("FRONTEND_URL", "http://localhost:3000")
+self.frontend_verify_url = os.getenv("FRONTEND_VERIFY_URL", f"{self.frontend_url}/verify-email")
+self.frontend_reset_url  = os.getenv("FRONTEND_RESET_URL",  f"{self.frontend_url}/reset-password")
+
+# Choose backend: "smtp" (default) or "console" to log emails only
+self.backend = os.getenv("EMAIL_BACKEND", "smtp").lower()
+
 
     # ---------- Public API ----------
     def send_verification_email(self, user_email, username, verification_token):
