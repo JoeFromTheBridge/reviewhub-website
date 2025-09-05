@@ -2,8 +2,8 @@ import os
 import logging
 from datetime import datetime, timedelta
 
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, request, jsonify, make_response  # + make_response for preflight
+# from flask_cors import CORS  # removed: not needed with minimal CORS shim
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token, get_jwt_identity
@@ -73,10 +73,7 @@ db = SQLAlchemy(app)
 jwt = JWTManager(app)
 migrate = Migrate(app, db)
 
-# CORS configuration
 # ===== Minimal, framework-free CORS (no cookies) =====
-from flask import make_response
-
 # If you are NOT using cookies (JWT via Authorization header), this is safe & simplest.
 # It covers both normal responses and preflight OPTIONS.
 ALLOWED_HEADERS = "Content-Type, Authorization"
@@ -108,15 +105,13 @@ def handle_preflight():
         return resp
 # ===== End minimal CORS =====
 
-
-
-
 # -------------------------
 # Health check
 # -------------------------
 @app.get("/healthz")
 def healthz():
     return {"ok": True, "db": app.config["SQLALCHEMY_DATABASE_URI"][:32] + "..."}, 200
+
 @app.route("/api/_debug/cors", methods=["GET", "OPTIONS"])
 def debug_cors():
     return jsonify({
@@ -124,6 +119,7 @@ def debug_cors():
         "origin_seen": request.headers.get("Origin"),
         "note": "Inspect response header: Access-Control-Allow-Origin"
     }), 200
+
 
 # -------------------------
 # Root index (landing page)
