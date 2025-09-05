@@ -2486,61 +2486,42 @@ def seed_command(demo):
         click.echo(f"Seed complete. New objects created: {created}")
 
 # --- Seed runner (no-shell) ---
-SEED_TOKEN = os.getenv("SEED_TOKEN")  # set this in Render env
+import secrets
 
-def _seed_demo_data():
-    from sqlalchemy import exists
-    # idempotent sample data (adjust as you like)
-    # ensure categories
-    electronics = Category.query.filter_by(slug="electronics").first()
-    if not electronics:
-        electronics = Category(name="Electronics", slug="electronics", description="Gadgets & devices")
-        db.session.add(electronics)
-    home = Category.query.filter_by(slug="home").first()
-    if not home:
-        home = Category(name="Home", slug="home", description="Home & kitchen")
-        db.session.add(home)
+SEED_TOKEN = os.getenv("SEED_TOKEN", "")
 
-    db.session.commit()
-
-    # ensure a few products
-    def ensure_product(name, category, brand=None, price_min=None, price_max=None, description=None):
-        p = Product.query.filter_by(name=name).first()
-        if not p:
-            p = Product(
-                name=name, category_id=category.id, brand=brand,
-                price_min=price_min, price_max=price_max, description=description
-            )
-            db.session.add(p)
-            db.session.commit()
-
-    ensure_product("Echo Dot (5th Gen)", electronics, brand="Amazon", price_min=49.99, price_max=59.99,
-                   description="Smart speaker with Alexa")
-    ensure_product("Instant Pot Duo 7-in-1", home, brand="Instant Brands", price_min=79.99, price_max=99.99,
-                   description="Multi-use pressure cooker")
-    ensure_product("Sony WH-1000XM5", electronics, brand="Sony", price_min=349.99, price_max=399.99,
-                   description="Noise cancelling headphones")
-
-    return {
-        "categories": Category.query.count(),
-        "products": Product.query.count(),
-    }
-
-@app.route("/api/admin/seed", methods=["POST"])
-def http_seed():
-    # Simple bearer-token guard
-    auth = request.headers.get("Authorization", "")
-    token = auth.replace("Bearer ", "").strip() if auth.startswith("Bearer ") else None
-    if not SEED_TOKEN or not token or token != SEED_TOKEN:
+@app.post("/api/admin/seed")
+def seed_data():
+    header = request.headers.get("Authorization", "")
+    parts = header.split()
+    if len(parts) != 2 or parts[0] != "Bearer" or parts[1] != SEED_TOKEN:
         return jsonify({"error": "Unauthorized"}), 401
 
-    try:
-        with app.app_context():
-            stats = _seed_demo_data()
-        return jsonify({"ok": True, "seeded": stats}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"ok": False, "error": str(e)}), 500
+    # --- idempotent seed (safe to run many times) ---
+    def get_or_create(model, defaults=None, **kwargs):
+        inst = model.query.filter_by(**kwargs).first()
+        if inst:
+            return inst, False
+        params = {**(defaults or {}), **kwargs}
+        inst = model(**params)
+        db.session.add(inst)
+        return inst, True
+
+    # categories
+    laptops, _ = get_or_create(Category, name="Laptops", slug="laptops")
+    phones, _  = get_or_create(Category, name="Phones",  slug="phones")
+
+    # products
+    p1, _ = get_or_create(Product, name="ZenBook 14", brand="ASUS", model="UX3402",
+                          category_id=laptops.id)
+    p2, _ = get_or_create(Product, name="MacBook Air 13", brand="Apple", model="M2",
+                          category_id=laptops.id)
+    p3, _ = get_or_create(Product, name="Pixel 8", brand="Google", model="GA04831-US",
+                          category_id=phones.id)
+
+    db.session.commit()
+    return jsonify({"ok": True, "seeded_products": [p.name for p in (p1, p2, p3)]})
+
 
 
 # -------------------------
